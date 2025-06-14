@@ -48,7 +48,7 @@ namespace deteccionMovimiento
             {
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    CargarGIF(ofd.FileName);
+                    CargarFramesGIF(ofd.FileName);
                     gifFrameIndex = 0;
                     trayectoria.Clear();
                     timer.Start();
@@ -61,7 +61,7 @@ namespace deteccionMovimiento
         /// Carga un archivo GIF y extrae todos sus frames
         /// </summary>
         /// <param name="path">Ruta del archivo GIF a cargar</param>
-        private void CargarGIF(string path)
+        private void CargarFramesGIF(string path)
         {
             // Limpiar frames anteriores
             originalFrames.ForEach(frame => frame?.Dispose());
@@ -91,49 +91,18 @@ namespace deteccionMovimiento
         {
             if (originalFrames.Count == 0) return;
 
-            // Obtener frame original actual
             var original = originalFrames[gifFrameIndex];
             pictureBoxOriginal.Image = original;
 
-            // Procesar imagen para detección de movimiento
             var processed = AplicarFiltros(original);
-
-            // Calcular centroide del objeto en movimiento
             var centroide = CalcularCentroide(processed);
-
-            // Registrar posición en la trayectoria (si se detectó objeto)
             if (!centroide.IsEmpty) trayectoria.Add(centroide);
 
-            // Dibujar trayectoria y marcadores
-            using (var g = Graphics.FromImage(processed))
-            {
-                // Dibujar trayectoria histórica
-                if (trayectoria.Count > 1)
-                {
-                    for (int i = 1; i < trayectoria.Count; i++)
-                    {
-                        // Línea conectando puntos anteriores
-                        g.DrawLine(Pens.GreenYellow, trayectoria[i - 1], trayectoria[i]);
-                        // Puntos pequeños verdes para posiciones anteriores
-                        g.FillEllipse(Brushes.DarkGreen, trayectoria[i].X - 3, trayectoria[i].Y - 3, 6, 6);
-                    }
-                }
+            // Usamos el nuevo método para dibujar la trayectoria
+            DibujarTrayectoria(processed, trayectoria, centroide);
 
-                // Dibujar posición actual (si hay detección)
-                if (!centroide.IsEmpty)
-                {
-                    // Punto rojo grande para posición actual
-                    g.FillEllipse(Brushes.Red, centroide.X - 5, centroide.Y - 5, 10, 10);
-                    // Círculo exterior para mejor visibilidad
-                    g.DrawEllipse(Pens.DarkRed, centroide.X - 7, centroide.Y - 7, 14, 14);
-                }
-            }
-
-            // Actualizar PictureBox con el resultado procesado
-            pictureBoxProcesada.Image?.Dispose();
             pictureBoxProcesada.Image = processed;
 
-            // Avanzar al siguiente frame (cíclico)
             gifFrameIndex = (gifFrameIndex + 1) % originalFrames.Count;
         }
 
@@ -146,16 +115,12 @@ namespace deteccionMovimiento
         {
             // Convertir a escala de grises (ponderación estándar)
             Bitmap gris = new Grayscale(0.2125, 0.7154, 0.0721).Apply(original);
-
-            // Invertir colores (para que el objeto sea blanco)
-            new Invert().ApplyInPlace(gris);
-
+            //// Invertir colores (para que el objeto sea blanco)
+            //new Invert().ApplyInPlace(gris);
             // Umbralización automática (Otsu)
             new OtsuThreshold().ApplyInPlace(gris);
-
             // Dilatación para unir áreas cercanas
             new Dilation().ApplyInPlace(gris);
-
             // Convertir a formato RGB estándar
             Bitmap result = new Bitmap(gris.Width, gris.Height, PixelFormat.Format24bppRgb);
             using (Graphics g = Graphics.FromImage(result))
@@ -192,6 +157,83 @@ namespace deteccionMovimiento
 
                 // Devolver punto promedio (centroide) o vacío si no hay detección
                 return count > 0 ? new Point(sumX / count, sumY / count) : Point.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Método común para dibujar la trayectoria en una imagen
+        /// </summary>
+        private void DibujarTrayectoria(Image image, List<Point> trayectoriaCompleta, Point centroideActual)
+        {
+            using (var g = Graphics.FromImage(image))
+            {
+                // Dibujar trayectoria histórica
+                if (trayectoriaCompleta.Count > 1)
+                {
+                    for (int i = 1; i < trayectoriaCompleta.Count; i++)
+                    {
+                        g.DrawLine(Pens.GreenYellow, trayectoriaCompleta[i - 1], trayectoriaCompleta[i]);
+                        g.FillEllipse(Brushes.DarkGreen, trayectoriaCompleta[i].X - 3, trayectoriaCompleta[i].Y - 3, 6, 6);
+                    }
+                }
+
+                // Dibujar posición actual (si hay detección)
+                if (!centroideActual.IsEmpty)
+                {
+                    g.FillEllipse(Brushes.Red, centroideActual.X - 5, centroideActual.Y - 5, 10, 10);
+                    g.DrawEllipse(Pens.DarkRed, centroideActual.X - 7, centroideActual.Y - 7, 14, 14);
+                }
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private void GuardarGIF_Click(object sender, EventArgs e)
+        {
+            if (originalFrames.Count == 0 || trayectoria.Count == 0)
+            {
+                MessageBox.Show("No hay datos para guardar. Primero cargue un GIF y procese algunos frames.");
+                return;
+            }
+
+            using (SaveFileDialog sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "GIF animado (*.gif)|*.gif";
+                sfd.Title = "Guardar GIF con trayectoria";
+
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        // Generar frames usando la clase GifConverter
+                        var framesConTrayectoria = GifConverter.GenerarFramesConTrayectoria(
+                            originalFrames,
+                            trayectoria,
+                            DibujarTrayectoria);
+
+                        // Guardar el GIF
+                        GifConverter.GuardarComoGIF(framesConTrayectoria, sfd.FileName);
+
+                        // Liberar recursos
+                        framesConTrayectoria.ForEach(f => f.Dispose());
+
+                        MessageBox.Show("GIF guardado exitosamente!");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error al guardar el GIF: {ex.Message}");
+                    }
+                }
             }
         }
     }

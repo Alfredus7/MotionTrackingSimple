@@ -68,9 +68,11 @@
             this.guardarGifToolStripMenuItem.Name = "guardarGifToolStripMenuItem";
             this.guardarGifToolStripMenuItem.Size = new System.Drawing.Size(75, 20);
             this.guardarGifToolStripMenuItem.Text = "guardarGif";
+            this.guardarGifToolStripMenuItem.Click += new System.EventHandler(this.GuardarGIF_Click);
             // 
             // tableLayoutPanel1
             // 
+            this.tableLayoutPanel1.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Outset;
             this.tableLayoutPanel1.ColumnCount = 2;
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
@@ -91,9 +93,9 @@
             // 
             this.pictureBoxOriginal.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("pictureBoxOriginal.BackgroundImage")));
             this.pictureBoxOriginal.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pictureBoxOriginal.Location = new System.Drawing.Point(3, 55);
+            this.pictureBoxOriginal.Location = new System.Drawing.Point(5, 58);
             this.pictureBoxOriginal.Name = "pictureBoxOriginal";
-            this.pictureBoxOriginal.Size = new System.Drawing.Size(394, 368);
+            this.pictureBoxOriginal.Size = new System.Drawing.Size(391, 363);
             this.pictureBoxOriginal.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBoxOriginal.TabIndex = 2;
             this.pictureBoxOriginal.TabStop = false;
@@ -102,9 +104,9 @@
             // 
             this.pictureBoxProcesada.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("pictureBoxProcesada.BackgroundImage")));
             this.pictureBoxProcesada.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pictureBoxProcesada.Location = new System.Drawing.Point(403, 55);
+            this.pictureBoxProcesada.Location = new System.Drawing.Point(404, 58);
             this.pictureBoxProcesada.Name = "pictureBoxProcesada";
-            this.pictureBoxProcesada.Size = new System.Drawing.Size(394, 368);
+            this.pictureBoxProcesada.Size = new System.Drawing.Size(391, 363);
             this.pictureBoxProcesada.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBoxProcesada.TabIndex = 1;
             this.pictureBoxProcesada.TabStop = false;
@@ -114,9 +116,9 @@
             this.label1.AutoSize = true;
             this.label1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(3, 0);
+            this.label1.Location = new System.Drawing.Point(5, 2);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(394, 52);
+            this.label1.Size = new System.Drawing.Size(391, 51);
             this.label1.TabIndex = 3;
             this.label1.Text = "Imagen Original";
             this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -126,9 +128,9 @@
             this.label2.AutoSize = true;
             this.label2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(403, 0);
+            this.label2.Location = new System.Drawing.Point(404, 2);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(394, 52);
+            this.label2.Size = new System.Drawing.Size(391, 51);
             this.label2.TabIndex = 4;
             this.label2.Text = "Imagen Prosesada";
             this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
