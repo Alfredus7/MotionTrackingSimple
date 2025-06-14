@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Windows.Forms;
 using Accord.Imaging.Filters;
@@ -49,11 +50,10 @@ namespace deteccionMovimiento
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
                     CargarFramesGIF(ofd.FileName);
-                    gifFrameIndex = 0;
-                    trayectoria.Clear();
-                    timer.Start();
+                    
                 }
             }
+            Empezar();
             groupBox1.Enabled = true;
         }
 
@@ -82,6 +82,7 @@ namespace deteccionMovimiento
                     originalFrames.Add(frame);
                 }
             }
+            
         }
 
         /// <summary>
@@ -115,8 +116,11 @@ namespace deteccionMovimiento
         {
             // Convertir a escala de grises (ponderación estándar)
             Bitmap gris = new Grayscale(0.2125, 0.7154, 0.0721).Apply(original);
-            //// Invertir colores (para que el objeto sea blanco)
-            //new Invert().ApplyInPlace(gris);
+            if (checkBoxInvertir.Checked)
+            {
+                //Invertir colores(para que el objeto sea blanco)
+                new Invert().ApplyInPlace(gris);
+            }
             // Umbralización automática (Otsu)
             new OtsuThreshold().ApplyInPlace(gris);
             // Dilatación para unir áreas cercanas
@@ -158,34 +162,60 @@ namespace deteccionMovimiento
                 // Devolver punto promedio (centroide) o vacío si no hay detección
                 return count > 0 ? new Point(sumX / count, sumY / count) : Point.Empty;
             }
+        }  
+        private void btnProsesar_Click(object sender, EventArgs e)
+        {
+            Empezar();
         }
 
-        /// <summary>
-        /// Método común para dibujar la trayectoria en una imagen
-        /// </summary>
-        private void DibujarTrayectoria(Image image, List<Point> trayectoriaCompleta, Point centroideActual)
+        private void DibujarTrayectoria(Image img, List<Point> path, Point center)
         {
-            using (var g = Graphics.FromImage(image))
+            using (var g = Graphics.FromImage(img))
             {
-                // Dibujar trayectoria histórica
-                if (trayectoriaCompleta.Count > 1)
+                // Configuración básica
+                float s = (float)numericSize.Value; // Tamaño base
+                var colors = new
                 {
-                    for (int i = 1; i < trayectoriaCompleta.Count; i++)
-                    {
-                        g.DrawLine(Pens.GreenYellow, trayectoriaCompleta[i - 1], trayectoriaCompleta[i]);
-                        g.FillEllipse(Brushes.DarkGreen, trayectoriaCompleta[i].X - 3, trayectoriaCompleta[i].Y - 3, 6, 6);
-                    }
+                    Path = Color.LimeGreen,    // Color de la trayectoria
+                    Point = Color.DarkGreen,    // Color de puntos
+                    Current = Color.Red,        // Color del centro actual
+                    Border = Color.DarkRed      // Color del borde
+                };
+
+                // Dibujar trayectoria (líneas + puntos)
+                if (path.Count > 1)
+                {
+                    // Líneas de trayectoria
+                    using (var pen = new Pen(colors.Path, s))
+                        for (int i = 1; i < path.Count; i++)
+                            g.DrawLine(pen, path[i - 1], path[i]);
+
+                    // Puntos de trayectoria
+                    using (var brush = new SolidBrush(colors.Point))
+                        foreach (var p in path)
+                            g.FillEllipse(brush, p.X - s, p.Y - s, s * 2, s * 2); // radio = size
                 }
 
-                // Dibujar posición actual (si hay detección)
-                if (!centroideActual.IsEmpty)
+                // Marcador de posición actual
+                if (!center.IsEmpty)
                 {
-                    g.FillEllipse(Brushes.Red, centroideActual.X - 5, centroideActual.Y - 5, 10, 10);
-                    g.DrawEllipse(Pens.DarkRed, centroideActual.X - 7, centroideActual.Y - 7, 14, 14);
+                    float r = (float)(s * 1.5); // Radio del marcador
+                    float cross = r * 0.7f; // Tamaño cruz
+
+                    using (var brush = new SolidBrush(colors.Current))
+                    using (var pen = new Pen(Color.FromArgb(220, colors.Border), s * 1.5f))
+                    {
+                        // Círculo principal
+                        g.FillEllipse(brush, center.X - r / 2, center.Y - r / 2, r, r);
+                        g.DrawEllipse(pen, center.X - r / 2, center.Y - r / 2, r, r);
+
+                        // Cruz indicadora
+                        g.DrawLine(pen, center.X - cross / 2, center.Y, center.X + cross / 2, center.Y);
+                        g.DrawLine(pen, center.X, center.Y - cross / 2, center.X, center.Y + cross / 2);
+                    }
                 }
             }
         }
-
 
 
 
@@ -235,6 +265,29 @@ namespace deteccionMovimiento
                     }
                 }
             }
+        }
+
+        
+
+        public void Empezar()
+        {
+            timer.Stop();
+            gifFrameIndex = 0;
+            trayectoria.Clear();
+            timer.Start();
+        }
+        private void checkBoxInvertir_CheckedChanged(object sender, EventArgs e)
+        {
+            timer.Stop();
+        }
+        private void numericUmbral_ValueChanged(object sender, EventArgs e)
+        {
+            timer.Stop();
+        }
+
+        private void numericSize_ValueChanged(object sender, EventArgs e)
+        {
+            timer.Stop();
         }
     }
 }
