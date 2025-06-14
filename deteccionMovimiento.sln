@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35303.130
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotionTrackingSimple", "deteccionMovimiento\MotionTrackingSimple.csproj", "{34935811-DC00-48BA-96B7-2F2EC3BBB231}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{34935811-DC00-48BA-96B7-2F2EC3BBB231}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34935811-DC00-48BA-96B7-2F2EC3BBB231}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34935811-DC00-48BA-96B7-2F2EC3BBB231}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34935811-DC00-48BA-96B7-2F2EC3BBB231}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {11E54122-DB0D-42FD-BE90-3F8BF663B5D9}
+	EndGlobalSection
+EndGlobal
