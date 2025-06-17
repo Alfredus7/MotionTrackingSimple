@@ -1,293 +1,261 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Windows.Forms;
 using Accord.Imaging.Filters;
 
-namespace deteccionMovimiento
+namespace DeteccionMovimiento
 {
     /// <summary>
-    /// Formulario principal para el seguimiento de movimiento simple
-    /// Detecta y sigue un único objeto en movimiento en un GIF animado
+    /// Formulario principal para el seguimiento de movimiento en imágenes
+    /// Detecta y sigue objetos en movimiento en un GIF animado
     /// </summary>
     public partial class MotionTrackingForm : Form
     {
-        // Almacena los frames originales del GIF cargado
-        private List<Bitmap> originalFrames = new List<Bitmap>();
+        // Lista de frames originales del GIF cargado
+        private List<Bitmap> _framesOriginales = new List<Bitmap>();
 
-        // Guarda la trayectoria del objeto detectado (coordenadas X,Y)
-        private List<Point> trayectoria = new List<Point>();
+        // Historial de posiciones del objeto detectado
+        private List<Point> _historialPosiciones = new List<Point>();
 
         // Índice del frame actual que se está procesando
-        private int gifFrameIndex = 0;
+        private int _indiceFrameActual = 0;
 
-        // Temporizador para controlar la animación
-        private Timer timer = new Timer { Interval = 100 }; // 10 FPS (100ms por frame)
+        // Temporizador para controlar la velocidad de reproducción
+        private Timer _temporizadorAnimacion = new Timer { Interval = 100 }; // 10 FPS (100ms por frame)
 
         /// <summary>
-        /// Constructor del formulario
+        /// Inicializa el formulario y configura el doble buffer para mejor rendimiento gráfico
         /// </summary>
         public MotionTrackingForm()
         {
             InitializeComponent();
             this.DoubleBuffered = true; // Para renderizado suave
-            timer.Tick += (s, e) => ProcesarFrame();
+            _temporizadorAnimacion.Tick += (sender, e) => ProcesarFrameActual();
         }
 
+        #region Eventos de Interfaz
+
         /// <summary>
-        /// Evento del botón para cargar un GIF animado
+        /// Maneja el evento de clic en el botón para cargar un archivo GIF
         /// </summary>
-        private void CargarGIF_Click(object sender, EventArgs e)
+        private void BtnCargarGIF_Click(object sender, EventArgs e)
         {
-            using (var ofd = new OpenFileDialog
+            using (var dialogoArchivo = new OpenFileDialog
             {
                 Filter = "GIF animado (*.gif)|*.gif",
                 Title = "Seleccione un GIF animado para analizar"
             })
             {
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (dialogoArchivo.ShowDialog() == DialogResult.OK)
                 {
-                    CargarFramesGIF(ofd.FileName);
-                    
+                    CargarFramesDesdeGIF(dialogoArchivo.FileName);
                 }
             }
-            Empezar();
-            groupBox1.Enabled = true;
+
+            IniciarProcesamiento();
+            groupBoxOpciones.Enabled = true;
         }
 
         /// <summary>
-        /// Carga un archivo GIF y extrae todos sus frames
+        /// Maneja el evento de clic en el botón de procesamiento
         /// </summary>
-        /// <param name="path">Ruta del archivo GIF a cargar</param>
-        private void CargarFramesGIF(string path)
+        private void BtnProcesar_Click(object sender, EventArgs e)
+        {
+            IniciarProcesamiento();
+        }
+
+        /// <summary>
+        /// Maneja cambios en la configuración de inversión de colores
+        /// </summary>
+        private void Pausar_Changed(object sender, EventArgs e)
+        {
+            _temporizadorAnimacion.Stop();
+        }
+
+        #endregion
+
+        #region Procesamiento de Imágenes
+
+        /// <summary>
+        /// Carga un archivo GIF y extrae todos sus frames individuales
+        /// </summary>
+        /// <param name="rutaArchivo">Ruta completa del archivo GIF a cargar</param>
+        private void CargarFramesDesdeGIF(string rutaArchivo)
         {
             // Limpiar frames anteriores
-            originalFrames.ForEach(frame => frame?.Dispose());
-            originalFrames.Clear();
+            _framesOriginales.ForEach(frame => frame?.Dispose());
+            _framesOriginales.Clear();
 
-            using (var gif = Accord.Imaging.Image.FromFile(path))
+            using (var imagenGIF = Accord.Imaging.Image.FromFile(rutaArchivo))
             {
-                var dimension = new FrameDimension(gif.FrameDimensionsList[0]);
-                int frameCount = gif.GetFrameCount(dimension);
+                var dimensionFrames = new FrameDimension(imagenGIF.FrameDimensionsList[0]);
+                int totalFrames = imagenGIF.GetFrameCount(dimensionFrames);
 
                 // Extraer cada frame del GIF
-                for (int i = 0; i < frameCount; i++)
+                for (int i = 0; i < totalFrames; i++)
                 {
-                    gif.SelectActiveFrame(dimension, i);
-                    var frame = new Bitmap(gif.Width, gif.Height);
-                    using (var g = Graphics.FromImage(frame))
-                        g.DrawImage(gif, 0, 0);
-                    originalFrames.Add(frame);
+                    imagenGIF.SelectActiveFrame(dimensionFrames, i);
+                    var frame = new Bitmap(imagenGIF.Width, imagenGIF.Height);
+                    using (var graficos = Graphics.FromImage(frame))
+                        graficos.DrawImage(imagenGIF, 0, 0);
+                    _framesOriginales.Add(frame);
                 }
             }
-            
         }
 
         /// <summary>
         /// Procesa el frame actual: detecta movimiento y actualiza la visualización
         /// </summary>
-        private void ProcesarFrame()
+        private void ProcesarFrameActual()
         {
-            if (originalFrames.Count == 0) return;
+            if (_framesOriginales.Count == 0) return;
 
-            var original = originalFrames[gifFrameIndex];
-            pictureBoxOriginal.Image = original;
+            // Obtener y mostrar el frame original
+            var frameOriginal = _framesOriginales[_indiceFrameActual];
+            pictureBoxOriginal.Image = frameOriginal;
 
-            var processed = AplicarFiltros(original);
-            var centroide = CalcularCentroide(processed);
-            if (!centroide.IsEmpty) trayectoria.Add(centroide);
+            // Procesar el frame para detección de movimiento
+            var frameProcesado = AplicarFiltros(frameOriginal);
 
-            // Usamos el nuevo método para dibujar la trayectoria
-            DibujarTrayectoria(processed, trayectoria, centroide);
+            // Calcular y registrar la posición del objeto
+            var centroObjeto = CalcularCentroObjeto(frameProcesado);
+            if (!centroObjeto.IsEmpty) _historialPosiciones.Add(centroObjeto);
 
-            pictureBoxProcesada.Image = processed;
+            // Dibujar la trayectoria del objeto
+            DibujarTrayectoriaObjeto(frameProcesado, _historialPosiciones, centroObjeto);
 
-            gifFrameIndex = (gifFrameIndex + 1) % originalFrames.Count;
+            // Mostrar el frame procesado
+            pictureBoxProcesada.Image = frameProcesado;
+
+            // Avanzar al siguiente frame (circular)
+            _indiceFrameActual = (_indiceFrameActual + 1) % _framesOriginales.Count;
         }
 
         /// <summary>
-        /// Aplica filtros a la imagen para resaltar el objeto en movimiento
+        /// Aplica una serie de filtros para resaltar el objeto en movimiento
         /// </summary>
-        /// <param name="original">Imagen original a procesar</param>
-        /// <returns>Imagen binaria procesada</returns>
-        private Bitmap AplicarFiltros(Bitmap original)
+        /// <param name="imagenOriginal">Imagen original a procesar</param>
+        /// <returns>Imagen binaria procesada (blanco=objeto, negro=fondo)</returns>
+        private Bitmap AplicarFiltros(Bitmap imagenOriginal)
         {
-            // Convertir a escala de grises (ponderación estándar)
-            Bitmap gris = new Grayscale(0.2125, 0.7154, 0.0721).Apply(original);
+            // 1. Convertir a escala de grises (ponderación estándar)
+            Bitmap imagenGrises = new Grayscale(0.2125, 0.7154, 0.0721).Apply(imagenOriginal);
+
+            // 2. Opcional: Invertir colores (para que el fondo sea blanco)
             if (checkBoxInvertir.Checked)
             {
-                //Invertir colores(para que el objeto sea blanco)
-                new Invert().ApplyInPlace(gris);
+                new Invert().ApplyInPlace(imagenGrises);
             }
-            // Umbralización automática (Otsu)
-            new OtsuThreshold().ApplyInPlace(gris);
-            // Dilatación para unir áreas cercanas
-            new Dilation().ApplyInPlace(gris);
-            // Convertir a formato RGB estándar
-            Bitmap result = new Bitmap(gris.Width, gris.Height, PixelFormat.Format24bppRgb);
-            using (Graphics g = Graphics.FromImage(result))
-                g.DrawImage(gris, 0, 0);
 
-            gris.Dispose();
-            return result;
+            // 3. Umbralización automática (método Otsu)
+            new OtsuThreshold().ApplyInPlace(imagenGrises);
+
+            // 4. Dilatación para unir áreas cercanas y reducir ruido
+            new Dilation().ApplyInPlace(imagenGrises);
+
+            // 5. Convertir a formato RGB estándar para visualización
+            Bitmap resultado = new Bitmap(imagenGrises.Width, imagenGrises.Height, PixelFormat.Format24bppRgb);
+            using (Graphics graficos = Graphics.FromImage(resultado))
+                graficos.DrawImage(imagenGrises, 0, 0);
+
+            imagenGrises.Dispose();
+            return resultado;
         }
 
         /// <summary>
-        /// Calcula el centroide (centro de masa) de los píxeles blancos
+        /// Calcula el centro del objeto detectado en una imagen binaria
         /// </summary>
-        /// <param name="bmp">Imagen binaria (blanco=objeto)</param>
-        /// <returns>Punto con las coordenadas del centroide o Point.Empty si no se detecta objeto</returns>
-        private Point CalcularCentroide(Bitmap bmp)
+        /// <param name="imagenBinaria">Imagen procesada (blanco=objeto, negro=fondo)</param>
+        /// <returns>
+        /// Punto con las coordenadas del centro del objeto o Point.Empty si no se detecta
+        /// </returns>
+        private Point CalcularCentroObjeto(Bitmap imagenBinaria)
         {
-            unsafe
-            {
-                int sumX = 0, sumY = 0, count = 0;
+            int sumaX = 0, sumaY = 0, contadorPixeles = 0;
 
-                // Recorrer toda la imagen buscando píxeles blancos (R=255)
-                for (int y = 0; y < bmp.Height; y++)
+            // Recorrer toda la imagen buscando píxeles del objeto (blancos)
+            for (int y = 0; y < imagenBinaria.Height; y++)
+            {
+                for (int x = 0; x < imagenBinaria.Width; x++)
                 {
-                    for (int x = 0; x < bmp.Width; x++)
+                    // Verificar si el píxel es parte del objeto (componente rojo = 255)
+                    if (imagenBinaria.GetPixel(x, y).R == 255)
                     {
-                        if (bmp.GetPixel(x, y).R == 255) // Píxel blanco detectado
-                        {
-                            sumX += x; // Acumular coordenada X
-                            sumY += y; // Acumular coordenada Y
-                            count++;   // Contar píxeles del objeto
-                        }
+                        sumaX += x;
+                        sumaY += y;
+                        contadorPixeles++;
                     }
                 }
-
-                // Devolver punto promedio (centroide) o vacío si no hay detección
-                return count > 0 ? new Point(sumX / count, sumY / count) : Point.Empty;
             }
-        }  
-        private void btnProsesar_Click(object sender, EventArgs e)
-        {
-            Empezar();
+
+            // Calcular promedio solo si se detectó un objeto
+            return contadorPixeles > 0 ?
+                new Point(sumaX / contadorPixeles, sumaY / contadorPixeles) :
+                Point.Empty;
         }
 
-        private void DibujarTrayectoria(Image img, List<Point> path, Point center)
+        /// <summary>
+        /// Dibuja la trayectoria del objeto y marca su posición actual
+        /// </summary>
+        /// <param name="imagen">Imagen sobre la que dibujar</param>
+        /// <param name="trayectoria">Lista de puntos históricos</param>
+        /// <param name="posicionActual">Posición actual del objeto</param>
+        private void DibujarTrayectoriaObjeto(Image imagen, List<Point> trayectoria, Point posicionActual)
         {
-            using (var g = Graphics.FromImage(img))
+            using (var g = Graphics.FromImage(imagen))
             {
-                // Configuración básica
-                float s = (float)numericSize.Value; // Tamaño base
+                // Configuración de tamaños y colores
+                float size = (float)numericSize.Value;
                 var colors = new
                 {
-                    Path = Color.LimeGreen,    // Color de la trayectoria
-                    Point = Color.DarkGreen,    // Color de puntos
-                    Current = Color.Red,        // Color del centro actual
-                    Border = Color.DarkRed      // Color del borde
+                    Trayectoria = Color.LimeGreen,   // Línea de trayectoria
+                    Puntos = Color.DarkGreen,        // Puntos históricos
+                    Actual = Color.Red,              // Marcador actual
+                    Borde = Color.DarkRed            // Borde del marcador
                 };
 
-                // Dibujar trayectoria (líneas + puntos)
-                if (path.Count > 1)
+                // Dibujar trayectoria histórica (líneas + puntos)
+                if (trayectoria.Count > 1)
                 {
-                    // Líneas de trayectoria
-                    using (var pen = new Pen(colors.Path, s))
-                        for (int i = 1; i < path.Count; i++)
-                            g.DrawLine(pen, path[i - 1], path[i]);
+                    using (var pen = new Pen(colors.Trayectoria, size))
+                        g.DrawLines(pen, trayectoria.ToArray());  // Une todos los puntos
 
-                    // Puntos de trayectoria
-                    using (var brush = new SolidBrush(colors.Point))
-                        foreach (var p in path)
-                            g.FillEllipse(brush, p.X - s, p.Y - s, s * 2, s * 2); // radio = size
+                    // Dibuja círculos en cada posición histórica
+                    using (var brush = new SolidBrush(colors.Puntos))
+                        foreach (var p in trayectoria)
+                            g.FillEllipse(brush, p.X - size, p.Y - size, size * 2, size * 2);
                 }
 
-                // Marcador de posición actual
-                if (!center.IsEmpty)
+                // Dibujar marcador de posición actual (círculo + cruz)
+                if (!posicionActual.IsEmpty)
                 {
-                    float r = (float)(s * 1.5); // Radio del marcador
-                    float cross = r * 0.7f; // Tamaño cruz
+                    float markerSize = size * 1.7f;
 
-                    using (var brush = new SolidBrush(colors.Current))
-                    using (var pen = new Pen(Color.FromArgb(220, colors.Border), s * 1.5f))
+
+                    using (var brush = new SolidBrush(colors.Actual))
+                    using (var pen = new Pen(Color.FromArgb(220, colors.Borde), size * 1.5f))
                     {
                         // Círculo principal
-                        g.FillEllipse(brush, center.X - r / 2, center.Y - r / 2, r, r);
-                        g.DrawEllipse(pen, center.X - r / 2, center.Y - r / 2, r, r);
-
-                        // Cruz indicadora
-                        g.DrawLine(pen, center.X - cross / 2, center.Y, center.X + cross / 2, center.Y);
-                        g.DrawLine(pen, center.X, center.Y - cross / 2, center.X, center.Y + cross / 2);
+                        g.FillEllipse(brush, posicionActual.X - markerSize / 2, posicionActual.Y - markerSize / 2, markerSize, markerSize);
+                        g.DrawEllipse(pen, posicionActual.X - markerSize / 2, posicionActual.Y - markerSize / 2, markerSize, markerSize);
                     }
                 }
             }
         }
 
-
-
-
-
-
-
-
-
-
-
-
-        private void GuardarGIF_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Inicia o reinicia el procesamiento del GIF
+        /// </summary>
+        private void IniciarProcesamiento()
         {
-            if (originalFrames.Count == 0 || trayectoria.Count == 0)
-            {
-                MessageBox.Show("No hay datos para guardar. Primero cargue un GIF y procese algunos frames.");
-                return;
-            }
-
-            using (SaveFileDialog sfd = new SaveFileDialog())
-            {
-                sfd.Filter = "GIF animado (*.gif)|*.gif";
-                sfd.Title = "Guardar GIF con trayectoria";
-
-                if (sfd.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        // Generar frames usando la clase GifConverter
-                        var framesConTrayectoria = GifConverter.GenerarFramesConTrayectoria(
-                            originalFrames,
-                            trayectoria,
-                            DibujarTrayectoria);
-
-                        // Guardar el GIF
-                        GifConverter.GuardarComoGIF(framesConTrayectoria, sfd.FileName);
-
-                        // Liberar recursos
-                        framesConTrayectoria.ForEach(f => f.Dispose());
-
-                        MessageBox.Show("GIF guardado exitosamente!");
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error al guardar el GIF: {ex.Message}");
-                    }
-                }
-            }
+            _temporizadorAnimacion.Stop();
+            _indiceFrameActual = 0;
+            _historialPosiciones.Clear();
+            _temporizadorAnimacion.Start();
         }
 
-        
-
-        public void Empezar()
-        {
-            timer.Stop();
-            gifFrameIndex = 0;
-            trayectoria.Clear();
-            timer.Start();
-        }
-        private void checkBoxInvertir_CheckedChanged(object sender, EventArgs e)
-        {
-            timer.Stop();
-        }
-        private void numericUmbral_ValueChanged(object sender, EventArgs e)
-        {
-            timer.Stop();
-        }
-
-        private void numericSize_ValueChanged(object sender, EventArgs e)
-        {
-            timer.Stop();
-        }
+        #endregion
     }
 }

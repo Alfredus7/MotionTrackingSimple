@@ -71,7 +71,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GifConverter.cs" />
     <Compile Include="MotionTrackingForm.cs">
       <SubType>Form</SubType>
     </Compile>
