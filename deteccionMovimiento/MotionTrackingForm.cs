@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Linq;
 using System.Windows.Forms;
+using Accord.Imaging;
 using Accord.Imaging.Filters;
 
 namespace DeteccionMovimiento
@@ -23,7 +25,7 @@ namespace DeteccionMovimiento
         private int _indiceFrameActual = 0;
 
         // Temporizador para controlar la velocidad de reproducción
-        private Timer _temporizadorAnimacion = new Timer { Interval = 100 }; // 10 FPS (100ms por frame)
+        private Timer _temporizadorFrames = new Timer { Interval = 100 }; // 10 FPS (100ms por frame)
 
         /// <summary>
         /// Inicializa el formulario y configura el doble buffer para mejor rendimiento gráfico
@@ -32,7 +34,7 @@ namespace DeteccionMovimiento
         {
             InitializeComponent();
             this.DoubleBuffered = true; // Para renderizado suave
-            _temporizadorAnimacion.Tick += (sender, e) => ProcesarFrameActual();
+            _temporizadorFrames.Tick += (sender, e) => ProcesarFrameActual();
         }
 
         #region Eventos de Interfaz
@@ -71,7 +73,7 @@ namespace DeteccionMovimiento
         /// </summary>
         private void Pausar_Changed(object sender, EventArgs e)
         {
-            _temporizadorAnimacion.Stop();
+            _temporizadorFrames.Stop();
         }
 
         #endregion
@@ -148,13 +150,10 @@ namespace DeteccionMovimiento
             {
                 new Invert().ApplyInPlace(imagenGrises);
             }
-
             // 3. Umbralización automática (método Otsu)
             new OtsuThreshold().ApplyInPlace(imagenGrises);
-
             // 4. Dilatación para unir áreas cercanas y reducir ruido
             new Dilation().ApplyInPlace(imagenGrises);
-
             // 5. Convertir a formato RGB estándar para visualización
             Bitmap resultado = new Bitmap(imagenGrises.Width, imagenGrises.Height, PixelFormat.Format24bppRgb);
             using (Graphics graficos = Graphics.FromImage(resultado))
@@ -173,27 +172,17 @@ namespace DeteccionMovimiento
         /// </returns>
         private Point CalcularCentroObjeto(Bitmap imagenBinaria)
         {
-            int sumaX = 0, sumaY = 0, contadorPixeles = 0;
+            var image = UnmanagedImage.FromManagedImage(imagenBinaria);
+            var whitePixels = Enumerable.Range(0, image.Height)
+                .SelectMany(y => Enumerable.Range(0, image.Width)
+                    .Where(x => image.GetPixel(x, y).R == 255)
+                    .Select(x => new Point(x, y)))
+                .ToList();
 
-            // Recorrer toda la imagen buscando píxeles del objeto (blancos)
-            for (int y = 0; y < imagenBinaria.Height; y++)
-            {
-                for (int x = 0; x < imagenBinaria.Width; x++)
-                {
-                    // Verificar si el píxel es parte del objeto (componente rojo = 255)
-                    if (imagenBinaria.GetPixel(x, y).R == 255)
-                    {
-                        sumaX += x;
-                        sumaY += y;
-                        contadorPixeles++;
-                    }
-                }
-            }
-
-            // Calcular promedio solo si se detectó un objeto
-            return contadorPixeles > 0 ?
-                new Point(sumaX / contadorPixeles, sumaY / contadorPixeles) :
-                Point.Empty;
+            return whitePixels.Count == 0 ? Point.Empty :
+                new Point(
+                    (int)Math.Round(whitePixels.Average(p => p.X)),
+                    (int)Math.Round(whitePixels.Average(p => p.Y)));
         }
 
         /// <summary>
@@ -202,45 +191,33 @@ namespace DeteccionMovimiento
         /// <param name="imagen">Imagen sobre la que dibujar</param>
         /// <param name="trayectoria">Lista de puntos históricos</param>
         /// <param name="posicionActual">Posición actual del objeto</param>
-        private void DibujarTrayectoriaObjeto(Image imagen, List<Point> trayectoria, Point posicionActual)
+        private void DibujarTrayectoriaObjeto(Bitmap imagen, List<Point> trayectoria, Point posicionActual)
         {
-            using (var g = Graphics.FromImage(imagen))
+            using (var graficos = Graphics.FromImage(imagen))
             {
-                // Configuración de tamaños y colores
-                float size = (float)numericSize.Value;
-                var colors = new
-                {
-                    Trayectoria = Color.LimeGreen,   // Línea de trayectoria
-                    Puntos = Color.DarkGreen,        // Puntos históricos
-                    Actual = Color.Red,              // Marcador actual
-                    Borde = Color.DarkRed            // Borde del marcador
-                };
+                float tamaño = (float)numericSize.Value;
+                var colorTrayectoria = Color.LimeGreen;
+                var colorPuntos = Color.DarkGreen;
+                var colorActual = Color.Red;
 
-                // Dibujar trayectoria histórica (líneas + puntos)
+                // Dibujar trayectoria si hay suficiente historia
                 if (trayectoria.Count > 1)
                 {
-                    using (var pen = new Pen(colors.Trayectoria, size))
-                        g.DrawLines(pen, trayectoria.ToArray());  // Une todos los puntos
+                    // Líneas de trayectoria
+                    using (var lapiz = new Pen(colorTrayectoria, tamaño))
+                        graficos.DrawLines(lapiz, trayectoria.ToArray());
 
-                    // Dibuja círculos en cada posición histórica
-                    using (var brush = new SolidBrush(colors.Puntos))
-                        foreach (var p in trayectoria)
-                            g.FillEllipse(brush, p.X - size, p.Y - size, size * 2, size * 2);
+                    // Puntos históricos
+                    using (var brocha = new SolidBrush(colorPuntos))
+                        foreach (var punto in trayectoria)
+                            graficos.FillEllipse(brocha, punto.X - tamaño, punto.Y - tamaño, tamaño * 2, tamaño * 2);
                 }
 
-                // Dibujar marcador de posición actual (círculo + cruz)
+                // Dibujar posición actual
                 if (!posicionActual.IsEmpty)
                 {
-                    float markerSize = size * 1.7f;
-
-
-                    using (var brush = new SolidBrush(colors.Actual))
-                    using (var pen = new Pen(Color.FromArgb(220, colors.Borde), size * 1.5f))
-                    {
-                        // Círculo principal
-                        g.FillEllipse(brush, posicionActual.X - markerSize / 2, posicionActual.Y - markerSize / 2, markerSize, markerSize);
-                        g.DrawEllipse(pen, posicionActual.X - markerSize / 2, posicionActual.Y - markerSize / 2, markerSize, markerSize);
-                    }
+                    using (var brocha = new SolidBrush(colorActual))
+                        graficos.FillEllipse(brocha, posicionActual.X - tamaño, posicionActual.Y - tamaño, tamaño * 2, tamaño * 2);
                 }
             }
         }
@@ -250,10 +227,10 @@ namespace DeteccionMovimiento
         /// </summary>
         private void IniciarProcesamiento()
         {
-            _temporizadorAnimacion.Stop();
+            _temporizadorFrames.Stop();
             _indiceFrameActual = 0;
             _historialPosiciones.Clear();
-            _temporizadorAnimacion.Start();
+            _temporizadorFrames.Start();
         }
 
         #endregion
