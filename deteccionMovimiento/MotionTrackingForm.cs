@@ -73,6 +73,7 @@ namespace DeteccionMovimiento
         /// </summary>
         private void Pausar_Changed(object sender, EventArgs e)
         {
+
             _temporizadorFrames.Stop();
         }
 
@@ -107,31 +108,27 @@ namespace DeteccionMovimiento
             }
         }
 
-        /// <summary>
-        /// Procesa el frame actual: detecta movimiento y actualiza la visualización
-        /// </summary>
+        // En la clase MotionTrackingForm, agrega esta propiedad para mantener el conteo total
+        private int _totalFrames => _framesOriginales.Count;
+
+        // Modifica el método ProcesarFrameActual para actualizar el label
         private void ProcesarFrameActual()
         {
             if (_framesOriginales.Count == 0) return;
 
-            // Obtener y mostrar el frame original
+            // Actualizar el label con el frame actual
+            lbFrames.Text = $"Frame: {_indiceFrameActual + 1} / {_totalFrames}";
+
             var frameOriginal = _framesOriginales[_indiceFrameActual];
             pictureBoxOriginal.Image = frameOriginal;
 
-            // Procesar el frame para detección de movimiento
             var frameProcesado = AplicarFiltros(frameOriginal);
-
-            // Calcular y registrar la posición del objeto
             var centroObjeto = CalcularCentroObjeto(frameProcesado);
             if (!centroObjeto.IsEmpty) _historialPosiciones.Add(centroObjeto);
 
-            // Dibujar la trayectoria del objeto
             DibujarTrayectoriaObjeto(frameProcesado, _historialPosiciones, centroObjeto);
-
-            // Mostrar el frame procesado
             pictureBoxProcesada.Image = frameProcesado;
 
-            // Avanzar al siguiente frame (circular)
             _indiceFrameActual = (_indiceFrameActual + 1) % _framesOriginales.Count;
         }
 
@@ -184,8 +181,7 @@ namespace DeteccionMovimiento
                     (int)Math.Round(whitePixels.Average(p => p.X)),
                     (int)Math.Round(whitePixels.Average(p => p.Y)));
         }
-
-        /// <summary>
+        // <summary>
         /// Dibuja la trayectoria del objeto y marca su posición actual
         /// </summary>
         /// <param name="imagen">Imagen sobre la que dibujar</param>
@@ -195,28 +191,33 @@ namespace DeteccionMovimiento
         {
             using (var graficos = Graphics.FromImage(imagen))
             {
+                // Configuración de tamaños y colores
+                float tamañoBase = (float)numericSize.Value;
+                var colores = new
+                {
+                    Trayectoria = Color.LimeGreen,    // Color de la línea de trayectoria
+                    Puntos = Color.DarkGreen,        // Color de los puntos históricos
+                    Actual = Color.IndianRed,               // Color del marcador actual
+                };
                 float tamaño = (float)numericSize.Value;
-                var colorTrayectoria = Color.LimeGreen;
-                var colorPuntos = Color.DarkGreen;
-                var colorActual = Color.Red;
-
                 // Dibujar trayectoria si hay suficiente historia
                 if (trayectoria.Count > 1)
                 {
-                    // Líneas de trayectoria
-                    using (var lapiz = new Pen(colorTrayectoria, tamaño))
-                        graficos.DrawLines(lapiz, trayectoria.ToArray());
+                    // Dibujar líneas conectando los puntos históricos
+                    using (var lapiz = new Pen(colores.Trayectoria, tamañoBase))
+                        for (int i = 1; i < trayectoria.Count; i++)
+                            graficos.DrawLine(lapiz, trayectoria[i - 1], trayectoria[i]);
 
                     // Puntos históricos
-                    using (var brocha = new SolidBrush(colorPuntos))
+                    using (var brocha = new SolidBrush(colores.Puntos))
                         foreach (var punto in trayectoria)
                             graficos.FillEllipse(brocha, punto.X - tamaño, punto.Y - tamaño, tamaño * 2, tamaño * 2);
                 }
 
-                // Dibujar posición actual
+                // Dibujar marcador de posición actual si hay detección
                 if (!posicionActual.IsEmpty)
                 {
-                    using (var brocha = new SolidBrush(colorActual))
+                    using (var brocha = new SolidBrush(colores.Actual))
                         graficos.FillEllipse(brocha, posicionActual.X - tamaño, posicionActual.Y - tamaño, tamaño * 2, tamaño * 2);
                 }
             }
@@ -225,11 +226,13 @@ namespace DeteccionMovimiento
         /// <summary>
         /// Inicia o reinicia el procesamiento del GIF
         /// </summary>
+        // En el método IniciarProcesamiento, actualiza el label
         private void IniciarProcesamiento()
         {
             _temporizadorFrames.Stop();
             _indiceFrameActual = 0;
             _historialPosiciones.Clear();
+            lbFrames.Text = "Frame: 0 / 0";  // Resetear el contador
             _temporizadorFrames.Start();
         }
 

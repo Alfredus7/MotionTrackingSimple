@@ -41,6 +41,7 @@
             this.label4 = new System.Windows.Forms.Label();
             this.checkBoxInvertir = new System.Windows.Forms.CheckBox();
             this.btnProcesar = new System.Windows.Forms.Button();
+            this.lbFrames = new System.Windows.Forms.Label();
             this.menuStrip1.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOriginal)).BeginInit();
@@ -135,6 +136,7 @@
             // groupBoxOpciones
             // 
             this.groupBoxOpciones.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(224)))), ((int)(((byte)(224)))), ((int)(((byte)(224)))));
+            this.groupBoxOpciones.Controls.Add(this.lbFrames);
             this.groupBoxOpciones.Controls.Add(this.numericSize);
             this.groupBoxOpciones.Controls.Add(this.label4);
             this.groupBoxOpciones.Controls.Add(this.checkBoxInvertir);
@@ -201,6 +203,15 @@
             this.btnProcesar.UseVisualStyleBackColor = true;
             this.btnProcesar.Click += new System.EventHandler(this.BtnProcesar_Click);
             // 
+            // lbFrames
+            // 
+            this.lbFrames.AutoSize = true;
+            this.lbFrames.Location = new System.Drawing.Point(448, 18);
+            this.lbFrames.Name = "lbFrames";
+            this.lbFrames.Size = new System.Drawing.Size(65, 13);
+            this.lbFrames.TabIndex = 11;
+            this.lbFrames.Text = "Frame: 0 / 0";
+            // 
             // MotionTrackingForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -240,6 +251,7 @@
         private System.Windows.Forms.CheckBox checkBoxInvertir;
         private System.Windows.Forms.NumericUpDown numericSize;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label lbFrames;
     }
 }
 
