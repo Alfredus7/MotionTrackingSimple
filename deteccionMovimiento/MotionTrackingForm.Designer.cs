@@ -70,6 +70,9 @@
             // 
             // tableLayoutPanel1
             // 
+            this.tableLayoutPanel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.tableLayoutPanel1.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Outset;
             this.tableLayoutPanel1.ColumnCount = 2;
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
@@ -78,7 +81,6 @@
             this.tableLayoutPanel1.Controls.Add(this.pictureBoxOriginal, 0, 1);
             this.tableLayoutPanel1.Controls.Add(this.pictureBoxProcesada, 1, 1);
             this.tableLayoutPanel1.Controls.Add(this.label1, 0, 0);
-            this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
             this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 24);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";
             this.tableLayoutPanel1.RowCount = 2;
@@ -101,6 +103,7 @@
             // 
             // pictureBoxOriginal
             // 
+            this.pictureBoxOriginal.BackColor = System.Drawing.Color.White;
             this.pictureBoxOriginal.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("pictureBoxOriginal.BackgroundImage")));
             this.pictureBoxOriginal.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBoxOriginal.Location = new System.Drawing.Point(5, 52);
@@ -112,6 +115,7 @@
             // 
             // pictureBoxProcesada
             // 
+            this.pictureBoxProcesada.BackColor = System.Drawing.Color.White;
             this.pictureBoxProcesada.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("pictureBoxProcesada.BackgroundImage")));
             this.pictureBoxProcesada.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBoxProcesada.Location = new System.Drawing.Point(404, 52);
@@ -176,7 +180,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(201, 17);
+            this.label4.Location = new System.Drawing.Point(201, 16);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(94, 13);
             this.label4.TabIndex = 8;
@@ -185,7 +189,7 @@
             // checkBoxInvertir
             // 
             this.checkBoxInvertir.AutoSize = true;
-            this.checkBoxInvertir.Location = new System.Drawing.Point(128, 15);
+            this.checkBoxInvertir.Location = new System.Drawing.Point(137, 15);
             this.checkBoxInvertir.Name = "checkBoxInvertir";
             this.checkBoxInvertir.Size = new System.Drawing.Size(58, 17);
             this.checkBoxInvertir.TabIndex = 6;
@@ -195,9 +199,9 @@
             // 
             // btnProcesar
             // 
-            this.btnProcesar.Location = new System.Drawing.Point(713, 16);
+            this.btnProcesar.Location = new System.Drawing.Point(546, 12);
             this.btnProcesar.Name = "btnProcesar";
-            this.btnProcesar.Size = new System.Drawing.Size(75, 21);
+            this.btnProcesar.Size = new System.Drawing.Size(101, 23);
             this.btnProcesar.TabIndex = 5;
             this.btnProcesar.Text = "Procesar";
             this.btnProcesar.UseVisualStyleBackColor = true;
@@ -206,7 +210,7 @@
             // lbFrames
             // 
             this.lbFrames.AutoSize = true;
-            this.lbFrames.Location = new System.Drawing.Point(448, 18);
+            this.lbFrames.Location = new System.Drawing.Point(427, 17);
             this.lbFrames.Name = "lbFrames";
             this.lbFrames.Size = new System.Drawing.Size(65, 13);
             this.lbFrames.TabIndex = 11;

@@ -139,24 +139,40 @@ namespace DeteccionMovimiento
         /// <returns>Imagen binaria procesada (blanco=objeto, negro=fondo)</returns>
         private Bitmap AplicarFiltros(Bitmap imagenOriginal)
         {
-            // 1. Convertir a escala de grises (ponderación estándar)
-            Bitmap imagenGrises = new Grayscale(0.2125, 0.7154, 0.0721).Apply(imagenOriginal);
+            // 1. Convertir a UnmanagedImage para mayor rendimiento
+            UnmanagedImage unmanaged = UnmanagedImage.FromManagedImage(imagenOriginal);
 
-            // 2. Opcional: Invertir colores (para que el fondo sea blanco)
+            // 2. Convertir a escala de grises
+            Grayscale grayscaleFilter = new Grayscale(0.2125, 0.7154, 0.0721);
+            UnmanagedImage imgGris = grayscaleFilter.Apply(unmanaged);
+
+            // 3. Invertir si está activado
             if (checkBoxInvertir.Checked)
             {
-                new Invert().ApplyInPlace(imagenGrises);
+                new Invert().ApplyInPlace(imgGris);
             }
-            // 3. Umbralización automática (método Otsu)
-            new OtsuThreshold().ApplyInPlace(imagenGrises);
-            // 4. Dilatación para unir áreas cercanas y reducir ruido
-            new Dilation().ApplyInPlace(imagenGrises);
-            // 5. Convertir a formato RGB estándar para visualización
-            Bitmap resultado = new Bitmap(imagenGrises.Width, imagenGrises.Height, PixelFormat.Format24bppRgb);
-            using (Graphics graficos = Graphics.FromImage(resultado))
-                graficos.DrawImage(imagenGrises, 0, 0);
 
-            imagenGrises.Dispose();
+            // 4. Aplicar Umbral Otsu
+            new OtsuThreshold().ApplyInPlace(imgGris);
+
+            // 5. Dilatación
+            new Dilation().ApplyInPlace(imgGris);
+
+            // 6. Convertir a Bitmap manejado
+            Bitmap temp = imgGris.ToManagedImage();
+
+            // 7. Convertir a 24bppRgb (si no lo es)
+            Bitmap resultado = new Bitmap(temp.Width, temp.Height, PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(resultado))
+            {
+                g.DrawImage(temp, 0, 0);
+            }
+
+            // Liberar recursos
+            unmanaged.Dispose();
+            imgGris.Dispose();
+            temp.Dispose();
+
             return resultado;
         }
 
@@ -169,17 +185,23 @@ namespace DeteccionMovimiento
         /// </returns>
         private Point CalcularCentroObjeto(Bitmap imagenBinaria)
         {
+            // Convertir la imagen administrada (Bitmap) a una imagen no administrada para mejor rendimiento
             var image = UnmanagedImage.FromManagedImage(imagenBinaria);
-            var whitePixels = Enumerable.Range(0, image.Height)
-                .SelectMany(y => Enumerable.Range(0, image.Width)
-                    .Where(x => image.GetPixel(x, y).R == 255)
-                    .Select(x => new Point(x, y)))
-                .ToList();
 
-            return whitePixels.Count == 0 ? Point.Empty :
+
+            // Obtener todos los píxeles blancos (parte del objeto) en la imagen:
+            var whitePixels = Enumerable.Range(0, image.Height) // Recorrer todas las filas (Y)
+                .SelectMany(y => Enumerable.Range(0, image.Width) // Para cada fila, recorrer todas las columnas (X)
+                    .Where(x => image.GetPixel(x, y).R == 255) // Filtrar solo píxeles blancos (canal Rojo = 255)
+                    .Select(x => new Point(x, y))) // Crear un Point con las coordenadas de cada píxel blanco
+                .ToList(); // Convertir a lista para poder contar y promediar
+
+
+            // Calcular el centro del objeto (promedio de todas las coordenadas):
+            return whitePixels.Count == 0 ? Point.Empty : // Si no hay píxeles blancos, retornar vacío
                 new Point(
-                    (int)Math.Round(whitePixels.Average(p => p.X)),
-                    (int)Math.Round(whitePixels.Average(p => p.Y)));
+                    (int)Math.Round(whitePixels.Average(p => p.X)), // Promedio de coordenadas X (redondeado)
+                    (int)Math.Round(whitePixels.Average(p => p.Y))); // Promedio de coordenadas Y (redondeado)
         }
         // <summary>
         /// Dibuja la trayectoria del objeto y marca su posición actual
